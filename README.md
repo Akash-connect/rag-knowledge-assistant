@@ -1,19 +1,26 @@
+---
+title: RAG Knowledge Assistant
+emoji: 🤖
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+---
+
 # RAG-Based LLM Knowledge Assistant
 
-A Retrieval-Augmented Generation AI assistant built with Python, LangChain, ChromaDB, Hugging Face embeddings, Groq LLM, and Streamlit.
+A Retrieval-Augmented Generation (RAG) AI assistant built with:
+
+- LangChain
+- ChromaDB
+- Hugging Face Embeddings
+- Groq LLM
+- Streamlit
 
 ## Features
+
 - Upload PDF/TXT documents
-- Multiple document support
-- Text chunking
-- Hugging Face embeddings
-- ChromaDB vector search
-- Groq LLM answer generation
-- Source context display
-- Chat history
-
-## Run Locally
-
-```bash
-pip install -r requirements.txt
-streamlit run app.py
+- Semantic Search
+- Vector Embeddings
+- Conversational AI
+- Source Context Retrieval
