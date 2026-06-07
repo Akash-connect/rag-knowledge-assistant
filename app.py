@@ -12,7 +12,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 load_dotenv()
 
 st.set_page_config(
-    page_title="Multi-PDF RAG Assistant",
+    page_title="RAG Assistant",
     page_icon="📚",
     layout="wide"
 )
@@ -175,7 +175,7 @@ def get_vector_db():
 
 def generate_answer(question, context):
     prompt = f"""
-You are a professional Multi-PDF RAG Knowledge Assistant.
+You are a professional RAG Knowledge Assistant.
 
 You can answer questions using the context retrieved from multiple uploaded documents.
 
@@ -206,7 +206,7 @@ Answer:
 
 
 def export_chat():
-    output = "Multi-PDF RAG Knowledge Assistant - Chat History\n\n"
+    output = "RAG Knowledge Assistant - Chat History\n\n"
     for chat in st.session_state.chat_history:
         output += f"Question: {chat['question']}\n"
         output += f"Answer: {chat['answer']}\n"
@@ -215,7 +215,7 @@ def export_chat():
 
 
 with st.sidebar:
-    st.markdown("## 📚 Multi-Document Knowledge Base")
+    st.markdown("Multi-Document Knowledge Base")
     st.caption("Upload multiple PDFs or TXT files and search across all of them.")
 
     uploaded_files = st.file_uploader(
@@ -281,7 +281,7 @@ with st.sidebar:
 
 st.markdown("""
 <div class="hero-card">
-    <div class="hero-title">📚 Multi-PDF RAG Knowledge Assistant</div>
+    <div class="hero-title">RAG Knowledge Assistant</div>
     <div class="hero-subtitle">
         Upload multiple PDFs or TXT files and ask questions across all documents using semantic search, vector embeddings, and LLM-powered answer generation.
     </div>
@@ -351,10 +351,10 @@ if not st.session_state.chat_history:
 for chat in reversed(st.session_state.chat_history):
     st.markdown('<div class="chat-card">', unsafe_allow_html=True)
 
-    st.markdown('<div class="user-label">👤 User Question</div>', unsafe_allow_html=True)
+    st.markdown('<div class="user-label">User Question</div>', unsafe_allow_html=True)
     st.write(chat["question"])
 
-    st.markdown('<div class="ai-label">🤖 AI Answer</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-label">AI Answer</div>', unsafe_allow_html=True)
     st.write(chat["answer"])
 
     with st.expander("View retrieved document sources"):
