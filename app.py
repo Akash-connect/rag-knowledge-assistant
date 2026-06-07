@@ -338,10 +338,10 @@ if not st.session_state.chat_history:
 for chat in reversed(st.session_state.chat_history):
     st.markdown('<div class="chat-card">', unsafe_allow_html=True)
 
-    st.markdown('<div class="user-label">👤 User Question</div>', unsafe_allow_html=True)
+    st.markdown('<div class="user-label">User Question</div>', unsafe_allow_html=True)
     st.write(chat["question"])
 
-    st.markdown('<div class="ai-label">🤖 AI Answer</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-label">AI Answer</div>', unsafe_allow_html=True)
     st.write(chat["answer"])
 
     with st.expander("View retrieved document sources"):
