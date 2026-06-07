@@ -3,11 +3,10 @@ import shutil
 import streamlit as st
 from dotenv import load_dotenv
 from groq import Groq
-from chromadb.config import Settings
 
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
 load_dotenv()
@@ -19,7 +18,7 @@ st.set_page_config(
 )
 
 UPLOAD_DIR = "data"
-DB_DIR = "chroma_db"
+DB_DIR = "faiss_index"
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -41,14 +40,11 @@ st.markdown("""
 <style>
 .block-container {
     padding-top: 3rem;
-    padding-bottom: 2rem;
     max-width: 1180px;
 }
-
 [data-testid="stSidebar"] {
     background: linear-gradient(180deg, #111827 0%, #020617 100%);
 }
-
 .hero-card {
     padding: 34px;
     border-radius: 24px;
@@ -56,41 +52,32 @@ st.markdown("""
     border: 1px solid rgba(255,255,255,0.10);
     margin-bottom: 28px;
 }
-
 .hero-title {
     font-size: 46px;
     font-weight: 900;
-    line-height: 1.1;
 }
-
 .hero-subtitle {
     color: #cbd5e1;
     font-size: 18px;
     margin-top: 14px;
-    max-width: 920px;
 }
-
 .metric-row {
     display: flex;
     gap: 16px;
     margin-top: 24px;
     flex-wrap: wrap;
 }
-
 .metric-card {
     padding: 14px 18px;
     border-radius: 16px;
     background: rgba(15,23,42,0.78);
     border: 1px solid rgba(255,255,255,0.08);
-    color: #e5e7eb;
 }
-
 .section-title {
     font-size: 24px;
     font-weight: 800;
     margin: 26px 0 14px 0;
 }
-
 .chat-card {
     padding: 22px;
     border-radius: 22px;
@@ -98,20 +85,15 @@ st.markdown("""
     border: 1px solid rgba(148,163,184,0.18);
     margin-bottom: 20px;
 }
-
 .user-label {
     color: #93c5fd;
     font-weight: 800;
-    margin-bottom: 6px;
 }
-
 .ai-label {
     color: #86efac;
     font-weight: 800;
     margin-top: 18px;
-    margin-bottom: 6px;
 }
-
 .source-card {
     padding: 14px;
     border-radius: 14px;
@@ -119,20 +101,9 @@ st.markdown("""
     border: 1px solid rgba(148,163,184,0.14);
     margin-bottom: 12px;
 }
-
 .stButton > button {
     border-radius: 14px;
-    padding: 0.65rem 1rem;
     font-weight: 700;
-}
-
-.stTextInput > div > div > input {
-    border-radius: 14px;
-}
-
-.small-muted {
-    color: #94a3b8;
-    font-size: 14px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -158,7 +129,7 @@ def load_documents(file_path):
     return loader.load()
 
 
-def create_vector_db(file_path):
+def create_or_update_vector_db(file_path):
     docs = load_documents(file_path)
 
     splitter = RecursiveCharacterTextSplitter(
@@ -172,50 +143,31 @@ def create_vector_db(file_path):
         st.warning("No readable text found in this document.")
         return None
 
-    settings = Settings(
-        anonymized_telemetry=False,
-        is_persistent=True
-    )
-
-    try:
-        vector_db = Chroma.from_documents(
-            documents=chunks,
-            embedding=embeddings,
-            persist_directory=DB_DIR,
-            client_settings=settings
+    if os.path.exists(DB_DIR):
+        vector_db = FAISS.load_local(
+            DB_DIR,
+            embeddings,
+            allow_dangerous_deserialization=True
         )
-        return vector_db
+        vector_db.add_documents(chunks)
+    else:
+        vector_db = FAISS.from_documents(chunks, embeddings)
 
-    except Exception as e:
-        st.warning("Vector database reset required. Rebuilding knowledge base...")
-        if os.path.exists(DB_DIR):
-            shutil.rmtree(DB_DIR)
-
-        vector_db = Chroma.from_documents(
-            documents=chunks,
-            embedding=embeddings,
-            persist_directory=DB_DIR,
-            client_settings=settings
-        )
-        return vector_db
+    vector_db.save_local(DB_DIR)
+    return vector_db
 
 
 def get_vector_db():
-    return Chroma(
-        persist_directory=DB_DIR,
-        embedding_function=embeddings,
-        client_settings=Settings(
-            anonymized_telemetry=False,
-            is_persistent=True
-        )
+    return FAISS.load_local(
+        DB_DIR,
+        embeddings,
+        allow_dangerous_deserialization=True
     )
 
 
 def generate_answer(question, context):
     prompt = f"""
 You are a professional Multi-PDF RAG Knowledge Assistant.
-
-You can answer questions using context retrieved from multiple uploaded documents.
 
 Rules:
 - Answer only using the uploaded document context.
@@ -270,7 +222,7 @@ with st.sidebar:
                     f.write(uploaded_file.getbuffer())
 
                 with st.spinner(f"Indexing {uploaded_file.name}..."):
-                    create_vector_db(file_path)
+                    create_or_update_vector_db(file_path)
 
                 st.session_state.processed_files.add(uploaded_file.name)
 
@@ -312,12 +264,12 @@ st.markdown("""
 <div class="hero-card">
     <div class="hero-title">📚 Multi-PDF RAG Knowledge Assistant</div>
     <div class="hero-subtitle">
-        Upload multiple PDFs or TXT files and ask questions across all documents using semantic search, vector embeddings, and LLM-powered answer generation.
+        Upload multiple PDFs or TXT files and ask questions across all documents using semantic search, FAISS vector search, Hugging Face embeddings, and Groq LLM.
     </div>
     <div class="metric-row">
         <div class="metric-card">📄 Multi-Document Upload</div>
         <div class="metric-card">🧠 Hugging Face Embeddings</div>
-        <div class="metric-card">🗂️ ChromaDB Vector Search</div>
+        <div class="metric-card">🗂️ FAISS Vector Search</div>
         <div class="metric-card">⚡ Groq LLM</div>
     </div>
 </div>
@@ -347,9 +299,7 @@ question = st.text_input(
     placeholder="Example: Summarize the main points from all uploaded documents."
 )
 
-ask = st.button("Generate Answer", use_container_width=False)
-
-if ask:
+if st.button("Generate Answer"):
     if not question:
         st.warning("Please enter a question.")
     elif not os.path.exists(DB_DIR):
@@ -366,7 +316,7 @@ if ask:
             else:
                 context = "\n\n".join([doc.page_content for doc in docs])
 
-                with st.spinner("Retrieving relevant context from uploaded documents..."):
+                with st.spinner("Retrieving context and generating answer..."):
                     answer = generate_answer(question, context)
 
                 st.session_state.chat_history.append({
@@ -375,9 +325,9 @@ if ask:
                     "sources": docs
                 })
 
-        except Exception as e:
+        except Exception:
             st.error("Something went wrong while searching the knowledge base.")
-            st.info("Click 'Clear KB', upload the documents again, and retry.")
+            st.info("Click Clear KB, upload the documents again, and retry.")
 
 
 st.markdown('<div class="section-title">Conversation</div>', unsafe_allow_html=True)
@@ -388,10 +338,10 @@ if not st.session_state.chat_history:
 for chat in reversed(st.session_state.chat_history):
     st.markdown('<div class="chat-card">', unsafe_allow_html=True)
 
-    st.markdown('<div class="user-label">User Question</div>', unsafe_allow_html=True)
+    st.markdown('<div class="user-label">👤 User Question</div>', unsafe_allow_html=True)
     st.write(chat["question"])
 
-    st.markdown('<div class="ai-label">AI Answer</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-label">🤖 AI Answer</div>', unsafe_allow_html=True)
     st.write(chat["answer"])
 
     with st.expander("View retrieved document sources"):
@@ -403,8 +353,8 @@ for chat in reversed(st.session_state.chat_history):
                 f"""
                 <div class="source-card">
                     <b>Source {i}</b><br>
-                    <span class="small-muted">Document:</span> {source}<br>
-                    <span class="small-muted">Page:</span> {page}
+                    Document: {source}<br>
+                    Page: {page}
                 </div>
                 """,
                 unsafe_allow_html=True
