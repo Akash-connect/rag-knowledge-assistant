@@ -3,6 +3,7 @@ import shutil
 import streamlit as st
 from dotenv import load_dotenv
 from groq import Groq
+from chromadb.config import Settings
 
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -12,7 +13,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 load_dotenv()
 
 st.set_page_config(
-    page_title="RAG Assistant",
+    page_title="Multi-PDF RAG Assistant",
     page_icon="📚",
     layout="wide"
 )
@@ -137,6 +138,18 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+def reset_knowledge_base():
+    if os.path.exists(DB_DIR):
+        shutil.rmtree(DB_DIR)
+
+    if os.path.exists(UPLOAD_DIR):
+        shutil.rmtree(UPLOAD_DIR)
+
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    st.session_state.chat_history = []
+    st.session_state.processed_files = set()
+
+
 def load_documents(file_path):
     if file_path.lower().endswith(".pdf"):
         loader = PyPDFLoader(file_path)
@@ -159,30 +172,54 @@ def create_vector_db(file_path):
         st.warning("No readable text found in this document.")
         return None
 
-    return Chroma.from_documents(
-        documents=chunks,
-        embedding=embeddings,
-        persist_directory=DB_DIR
+    settings = Settings(
+        anonymized_telemetry=False,
+        is_persistent=True
     )
+
+    try:
+        vector_db = Chroma.from_documents(
+            documents=chunks,
+            embedding=embeddings,
+            persist_directory=DB_DIR,
+            client_settings=settings
+        )
+        return vector_db
+
+    except Exception as e:
+        st.warning("Vector database reset required. Rebuilding knowledge base...")
+        if os.path.exists(DB_DIR):
+            shutil.rmtree(DB_DIR)
+
+        vector_db = Chroma.from_documents(
+            documents=chunks,
+            embedding=embeddings,
+            persist_directory=DB_DIR,
+            client_settings=settings
+        )
+        return vector_db
 
 
 def get_vector_db():
     return Chroma(
         persist_directory=DB_DIR,
-        embedding_function=embeddings
+        embedding_function=embeddings,
+        client_settings=Settings(
+            anonymized_telemetry=False,
+            is_persistent=True
+        )
     )
 
 
 def generate_answer(question, context):
     prompt = f"""
-You are a professional RAG Knowledge Assistant.
+You are a professional Multi-PDF RAG Knowledge Assistant.
 
-You can answer questions using the context retrieved from multiple uploaded documents.
+You can answer questions using context retrieved from multiple uploaded documents.
 
 Rules:
 - Answer only using the uploaded document context.
 - If multiple documents contain relevant information, combine the answer clearly.
-- Mention when the answer is based on the available uploaded documents.
 - Keep the answer clear, concise, and professional.
 - If the answer is not present in the context, say:
 "I could not find this information in the uploaded documents."
@@ -206,7 +243,7 @@ Answer:
 
 
 def export_chat():
-    output = "RAG Knowledge Assistant - Chat History\n\n"
+    output = "Multi-PDF RAG Knowledge Assistant - Chat History\n\n"
     for chat in st.session_state.chat_history:
         output += f"Question: {chat['question']}\n"
         output += f"Answer: {chat['answer']}\n"
@@ -215,7 +252,7 @@ def export_chat():
 
 
 with st.sidebar:
-    st.markdown("Multi-Document Knowledge Base")
+    st.markdown("## 📚 Multi-Document Knowledge Base")
     st.caption("Upload multiple PDFs or TXT files and search across all of them.")
 
     uploaded_files = st.file_uploader(
@@ -254,15 +291,7 @@ with st.sidebar:
 
     with col1:
         if st.button("Clear KB"):
-            if os.path.exists(DB_DIR):
-                shutil.rmtree(DB_DIR)
-
-            if os.path.exists(UPLOAD_DIR):
-                shutil.rmtree(UPLOAD_DIR)
-
-            os.makedirs(UPLOAD_DIR, exist_ok=True)
-            st.session_state.chat_history = []
-            st.session_state.processed_files = set()
+            reset_knowledge_base()
             st.success("Knowledge base cleared.")
 
     with col2:
@@ -281,7 +310,7 @@ with st.sidebar:
 
 st.markdown("""
 <div class="hero-card">
-    <div class="hero-title">RAG Knowledge Assistant</div>
+    <div class="hero-title">📚 Multi-PDF RAG Knowledge Assistant</div>
     <div class="hero-subtitle">
         Upload multiple PDFs or TXT files and ask questions across all documents using semantic search, vector embeddings, and LLM-powered answer generation.
     </div>
@@ -328,19 +357,27 @@ if ask:
     elif not GROQ_API_KEY:
         st.error("Missing GROQ_API_KEY. Add it in Streamlit Secrets.")
     else:
-        vector_db = get_vector_db()
-        docs = vector_db.similarity_search(question, k=4)
+        try:
+            vector_db = get_vector_db()
+            docs = vector_db.similarity_search(question, k=4)
 
-        context = "\n\n".join([doc.page_content for doc in docs])
+            if not docs:
+                st.warning("No relevant context found in uploaded documents.")
+            else:
+                context = "\n\n".join([doc.page_content for doc in docs])
 
-        with st.spinner("Retrieving relevant context from uploaded documents..."):
-            answer = generate_answer(question, context)
+                with st.spinner("Retrieving relevant context from uploaded documents..."):
+                    answer = generate_answer(question, context)
 
-        st.session_state.chat_history.append({
-            "question": question,
-            "answer": answer,
-            "sources": docs
-        })
+                st.session_state.chat_history.append({
+                    "question": question,
+                    "answer": answer,
+                    "sources": docs
+                })
+
+        except Exception as e:
+            st.error("Something went wrong while searching the knowledge base.")
+            st.info("Click 'Clear KB', upload the documents again, and retry.")
 
 
 st.markdown('<div class="section-title">Conversation</div>', unsafe_allow_html=True)
