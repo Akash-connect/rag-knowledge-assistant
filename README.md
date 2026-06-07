@@ -256,14 +256,7 @@ Modern and responsive Streamlit interface with:
 
 # Akash Jadhav
 
-AI/ML Engineer | Python Developer | GenAI Enthusiast
+AI/ML Engineer 
 
-GitHub:
-https://github.com/your-username
-
-LinkedIn:
-https://linkedin.com/in/your-profile
-
----
 
 ## ⭐ If you found this project useful, please consider giving it a star.
