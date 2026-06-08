@@ -212,45 +212,6 @@ Modern and responsive Streamlit interface with:
 
 ---
 
-## 🚀 Deployment
-
-### Streamlit Cloud
-
-1. Push project to GitHub.
-2. Create a new Streamlit app.
-3. Connect GitHub repository.
-4. Add GROQ_API_KEY in Secrets.
-5. Deploy.
-
----
-
-## 💼 Resume Description
-
-### Multi-PDF RAG Knowledge Assistant | Python, LangChain, FAISS, Hugging Face, Groq, Streamlit
-
-- Built and deployed an end-to-end Multi-PDF Retrieval-Augmented Generation (RAG) application capable of answering domain-specific questions from uploaded documents.
-- Developed intelligent document ingestion pipelines with text chunking, vector embeddings, and semantic search.
-- Integrated FAISS for efficient vector storage and similarity retrieval.
-- Leveraged Hugging Face embedding models and Groq LLM for context-aware answer generation.
-- Designed a modern Streamlit interface supporting multi-document upload, conversational querying, and source attribution.
-- Deployed the application on Streamlit Cloud for public access and demonstration.
-
----
-
-## 🎯 Future Improvements
-
-- Conversation Memory
-- OCR Support
-- Image Understanding
-- Multi-Modal RAG
-- Voice Input
-- Authentication
-- Admin Dashboard
-- Cloud Storage Integration
-- API Support
-- Docker Deployment
-
----
 
 ## 👨‍💻 Author
 
